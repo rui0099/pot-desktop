@@ -1,0 +1,70 @@
+name: Linux Build
+on:
+  workflow_dispatch:
+permissions: write-all
+
+jobs:
+  change-version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.outputstep.outputs.VERSION }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Get Version
+        id: outputstep
+        run: |
+          echo "VERSION=$(cat package.json | grep version | head -1 | awk -F: '{ print $2 }' | sed 's/[",]//g' | tr -d '[:space:]')" >> $GITHUB_OUTPUT
+          echo "VERSION=$(cat package.json | grep version | head -1 | awk -F: '{ print $2 }' | sed 's/[",]//g' | tr -d '[:space:]')"
+
+  prepare-source:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: source
+          path: .
+          if-no-files-found: error
+
+  build-for-linux:
+    needs: [change-version, prepare-source]
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [ubuntu-latest]
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            toolchain: stable-x86_64-unknown-linux-gnu
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: source
+      - name: Build for Linux
+        uses: ./.github/actions/build-for-linux
+        env:
+          TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+          TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+        with:
+          target: ${{ matrix.target }}
+          toolchain: ${{ matrix.toolchain }}
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux_${{ matrix.target }}
+          path: src-tauri/target/${{ matrix.target }}/release/bundle/deb/*.deb
+          if-no-files-found: error
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux_${{ matrix.target }}_appimage
+          path: src-tauri/target/${{ matrix.target }}/release/bundle/appimage/*.AppImage*
+          if-no-files-found: ignore
