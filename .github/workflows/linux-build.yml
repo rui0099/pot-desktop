@@ -80,3 +80,16 @@ jobs:
           path: src-tauri/target/${{ matrix.target }}/release/bundle/deb/*.deb
           if-no-files-found: error
       # 仅上传 deb 文件，移除 AppImage 相关的上传步骤
+
+      # 发布到 GitHub Releases
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
+        with:
+          files: src-tauri/target/${{ matrix.target }}/release/bundle/deb/*.deb
+          draft: false
+          prerelease: false
+          token: ${{ secrets.GITHUB_TOKEN }}
+          name: "Pot Desktop ${{ needs.change-version.outputs.version }} for Deepin"
+          tag_name: deepin-${{ needs.change-version.outputs.version }}
+          generate_release_notes: true
