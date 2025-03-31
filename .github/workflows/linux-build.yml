@@ -52,9 +52,8 @@ jobs:
         run: pnpm install
       - name: Build for Linux
         env:
-          # 移除签名相关的环境变量
-          # TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
-          # TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+          TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+          TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
           INPUT_TARGET: ${{ matrix.target }}
           INPUT_TOOLCHAIN: ${{ matrix.toolchain }}
         run: |
@@ -72,17 +71,12 @@ jobs:
           # 设置环境变量，使用兼容的编译选项
           export RUSTFLAGS="-C target-feature=-crt-static"
 
-          # 构建，禁用更新器
-          pnpm tauri build --target $INPUT_TARGET -b deb,rpm,appimage
+          # 仅打包 deb 文件
+          pnpm tauri build --target $INPUT_TARGET -b deb
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: linux_${{ matrix.target }}
           path: src-tauri/target/${{ matrix.target }}/release/bundle/deb/*.deb
           if-no-files-found: error
-      - name: Upload Artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: linux_${{ matrix.target }}_appimage
-          path: src-tauri/target/${{ matrix.target }}/release/bundle/appimage/*.AppImage*
-          if-no-files-found: ignore
+      # 仅上传 deb 文件，移除 AppImage 相关的上传步骤
